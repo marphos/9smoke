@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>9 smoke · админка</title>
+<style>
+:root{--bg:#ece9f1;--card:#fff;--ink:#2a2540;--mute:#7b7592;--acc:#6b4ce6;--line:#d9d4e6;--red:#d6335a}
+*{box-sizing:border-box;margin:0}
+body{font:15px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink);padding:16px;max-width:720px;margin:auto;padding-bottom:100px}
+h1{font-size:24px;margin:6px 0 14px}h1 b{color:var(--acc)}
+.box{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:12px;color:var(--mute);margin:8px 0 3px}
+input,select{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;background:#fff;color:var(--ink)}
+input[type=color]{padding:2px;height:40px}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+button{border:0;border-radius:10px;padding:11px 14px;font:600 14px system-ui;cursor:pointer;background:var(--acc);color:#fff}
+button.g{background:var(--line);color:var(--ink)}button.d{background:none;color:var(--red)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.chk{display:flex;align-items:center;gap:8px;margin-top:10px}.chk input{width:auto}
+.save{position:fixed;left:12px;right:12px;bottom:12px;max-width:696px;margin:auto;padding:16px;font-size:16px}
+.st{margin-top:8px;font-size:13px;color:var(--mute);min-height:18px}
+.off{opacity:.55}
+.sw{width:34px;height:34px;border-radius:9px;flex:none}
+</style></head><body>
+<h1><b>9</b> smoke · админка</h1>
+
+<div class="box" id="login">
+ <b>Вход</b>
+ <label>GitHub токен (хранится только в этом браузере)</label>
+ <input id="tok" type="password" placeholder="github_pat_...">
+ <label>Репозиторий</label>
+ <input id="repo" value="marphos/9smoke">
+ <div class="st" id="lst"></div>
+ <button style="margin-top:10px" onclick="login()">Войти</button>
+</div>
+
+<div id="app" style="display:none">
+ <div class="top"><b id="cntl"></b><div><button class="g" onclick="logout()">Выйти</button> <button onclick="add()">+ Товар</button></div></div>
+ <div id="list" style="margin-top:12px"></div>
+ <button class="save" onclick="save()">Сохранить на сайт</button>
+ <div class="st" id="sst"></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let items=[],sha=null,repo="",tok="";
+const FILE="products.json";
+const api=()=>`https://api.github.com/repos/${repo}/contents/${FILE}`;
+const H=()=>({Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"});
+const dec=b=>new TextDecoder().decode(Uint8Array.from(atob(b.replace(/\n/g,"")),c=>c.charCodeAt(0)));
+const enc=t=>{const b=new TextEncoder().encode(t);let s="";b.forEach(x=>s+=String.fromCharCode(x));return btoa(s)};
+try{$("tok").value=localStorage.getItem("tok")||"";$("repo").value=localStorage.getItem("repo")||"marphos/9smoke"}catch(e){}
+if($("tok").value)login();
+
+async function login(){
+ tok=$("tok").value.trim();repo=$("repo").value.trim();$("lst").textContent="Проверяю…";
+ try{
+  const r=await fetch(api(),{headers:H()});
+  if(r.status===401||r.status===403)throw new Error("Токен не подошёл или нет прав на запись (Contents: Read and write)");
+  if(!r.ok)throw new Error("Файл products.json не найден в репозитории ("+r.status+")");
+  const j=await r.json();sha=j.sha;items=JSON.parse(dec(j.content));
+  try{localStorage.setItem("tok",tok);localStorage.setItem("repo",repo)}catch(e){}
+  $("login").style.display="none";$("app").style.display="block";draw();
+ }catch(e){$("lst").textContent=e.message}
+}
+function logout(){try{localStorage.removeItem("tok")}catch(e){}location.reload()}
+
+function draw(){
+ $("cntl").textContent="Товаров: "+items.length;
+ const cats=[...new Set(items.map(p=>p.cat))];
+ $("list").innerHTML=items.map((p,i)=>`
+ <div class="box ${p.stock===false?"off":""}">
+  <div class="top"><div style="display:flex;gap:10px;align-items:center"><div class="sw" style="background:linear-gradient(135deg,${p.c[0]},${p.c[1]})"></div><b>${esc(p.name)||"Новый товар"}</b></div>
+   <div><button class="g" onclick="mv(${i},-1)">↑</button> <button class="g" onclick="mv(${i},1)">↓</button> <button class="d" onclick="del(${i})">Удалить</button></div></div>
+  <label>Название</label><input value="${esc(p.name)}" oninput="items[${i}].name=this.value">
+  <div class="r2"><div><label>Категория</label><input list="cl" value="${esc(p.cat)}" oninput="items[${i}].cat=this.value"></div>
+  <div><label>Цена (сом)</label><input type="number" value="${p.price}" oninput="items[${i}].price=+this.value"></div></div>
+  <label>Описание</label><input value="${esc(p.desc)}" oninput="items[${i}].desc=this.value">
+  <label>Ссылка на фото (необязательно)</label><input value="${esc(p.img||"")}" placeholder="https://..." oninput="items[${i}].img=this.value">
+  <div class="r2"><div><label>Цвет 1</label><input type="color" value="${p.c[0]}" oninput="items[${i}].c[0]=this.value"></div>
+  <div><label>Цвет 2</label><input type="color" value="${p.c[1]}" oninput="items[${i}].c[1]=this.value"></div></div>
+  <label class="chk"><input type="checkbox" ${p.stock!==false?"checked":""} onchange="items[${i}].stock=this.checked;draw()"> В наличии (показывать в магазине)</label>
+ </div>`).join("")+`<datalist id="cl">${cats.map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`;
+}
+const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+function add(){items.unshift({id:Date.now(),cat:items[0]?items[0].cat:"Жидкости",name:"",desc:"",price:0,c:["#6b4ce6","#a78bfa"],stock:true,img:""});draw();scrollTo(0,0)}
+function del(i){if(confirm("Удалить «"+items[i].name+"»?")){items.splice(i,1);draw()}}
+function mv(i,d){const j=i+d;if(j<0||j>=items.length)return;[items[i],items[j]]=[items[j],items[i]];draw()}
+
+async function save(){
+ $("sst").textContent="Сохраняю…";
+ try{
+  const g=await fetch(api(),{headers:H()});sha=(await g.json()).sha;
+  const r=await fetch(api(),{method:"PUT",headers:{...H(),"Content-Type":"application/json"},
+   body:JSON.stringify({message:"Обновление каталога",content:enc(JSON.stringify(items,null,1)),sha})});
+  if(!r.ok)throw new Error("Ошибка "+r.status+": "+((await r.json()).message||""));
+  $("sst").textContent="Сохранено. На сайте изменения появятся через 1–2 минуты.";
+ }catch(e){$("sst").textContent="Не вышло: "+e.message}
+}
+</script></body></html>
