@@ -26,9 +26,9 @@ button.g{background:var(--line);color:var(--ink)}button.d{background:none;color:
 <div class="box" id="login">
  <b>Вход</b>
  <label>GitHub токен (хранится только в этом браузере)</label>
- <input id="tok" type="password" placeholder="github_pat_...">
+ <input id="tok" type="password" autocomplete="off" placeholder="github_pat_...">
  <label>Репозиторий</label>
- <input id="repo" value="marphos/9smoke">
+ <input id="repo" value="marphos/9smoke" autocomplete="off">
  <div class="st" id="lst"></div>
  <button style="margin-top:10px" onclick="login()">Войти</button>
 </div>
@@ -52,7 +52,12 @@ try{$("tok").value=localStorage.getItem("tok")||"";$("repo").value=localStorage.
 if($("tok").value)login();
 
 async function login(){
- tok=$("tok").value.trim();repo=$("repo").value.trim();$("lst").textContent="Проверяю…";
+ const raw=$("tok").value+" "+$("repo").value;
+ tok=(raw.match(/github_pat_[A-Za-z0-9_]+/)||[""])[0];
+ repo=($("repo").value.match(/^\s*([\w.-]+\/[\w.-]+?)(?=github_pat_|\s|$)/)||[0,"marphos/9smoke"])[1];
+ $("repo").value=repo;$("tok").value=tok;
+ if(!tok){$("lst").textContent="Вставьте токен (начинается с github_pat_) в верхнее поле";return}
+$("lst").textContent="Проверяю…";
  try{
   const r=await fetch(api(),{headers:H()});
   if(r.status===401||r.status===403)throw new Error("Токен не подошёл или нет прав на запись (Contents: Read and write)");
