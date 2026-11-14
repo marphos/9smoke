@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>9 smoke</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#ece9f1;--card:#fff;--ink:#2a2540;--mute:#7b7592;--acc:#6b4ce6;--hot:#ff7a4d;--line:#d9d4e6}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+body{font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);padding-bottom:90px}
+header{padding:20px 16px 8px;display:flex;align-items:baseline;gap:10px}
+.logo{font-size:30px;font-weight:800;letter-spacing:-1px}.logo b{color:var(--acc);font-size:38px}
+header small{color:var(--mute)}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:8px 16px}
+.tabs button{border:1px solid var(--line);background:none;color:var(--ink);padding:8px 14px;border-radius:20px;font:inherit;white-space:nowrap}
+.tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 16px}
+.card{background:var(--card);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.pic{height:110px;display:grid;place-items:center;font-size:34px;font-weight:800;color:#fff;letter-spacing:-1px}
+.info{padding:10px 12px 12px;display:flex;flex-direction:column;gap:2px;flex:1}
+.info h3{font-size:15px}.info p{color:var(--mute);font-size:12px;flex:1}
+.row{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.price{font-weight:700}
+.add,.qty button{border:0;background:var(--acc);color:#fff;border-radius:10px;width:34px;height:34px;font-size:20px}
+.qty{display:flex;align-items:center;gap:8px}.qty button{width:30px;height:30px;font-size:18px}
+.qty button.m{background:var(--line);color:var(--ink)}
+.bar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));background:var(--ink);color:#fff;border:0;border-radius:16px;padding:16px;font:600 16px system-ui;display:flex;justify-content:space-between;transition:transform .2s}
+.bar.hide{transform:translateY(140%)}
+.sheet{position:fixed;inset:0;background:rgba(42,37,64,.5);display:none;align-items:flex-end}
+.sheet.open{display:flex}
+.panel{background:var(--bg);width:100%;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))}
+.panel h2{margin-bottom:12px}
+.line{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+input,textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit;margin-top:8px;background:#fff;color:var(--ink)}
+.total{display:flex;justify-content:space-between;font-weight:700;font-size:17px;margin:14px 0}
+.main{width:100%;border:0;background:var(--acc);color:#fff;border-radius:14px;padding:15px;font:600 16px system-ui}
+.link{background:none;border:0;color:var(--mute);width:100%;padding:12px;font:inherit}
+.gate{position:fixed;inset:0;background:var(--ink);color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:30px;gap:14px;z-index:9}
+.gate .logo{font-size:44px}.gate p{color:#c9c3e0;max-width:300px}
+.gate .main{max-width:300px}.gate .link{color:#c9c3e0}
+.empty{text-align:center;color:var(--mute);padding:30px}
+@media(prefers-color-scheme:dark){:root{--bg:#1c1930;--card:#2a2646;--ink:#f0edf8;--mute:#a49dc0;--line:#3d3860}.bar{background:var(--acc)}.tabs button.on{background:var(--acc);border-color:var(--acc)}input,textarea{background:#2a2646}}
+</style></head><body>
+
+<div class="gate" id="gate">
+  <div class="logo"><b>9</b> smoke</div>
+  <p>Магазин предназначен только для совершеннолетних. Вам есть 18 лет?</p>
+  <button class="main" onclick="ok()">Да, мне есть 18</button>
+  <button class="link" onclick="Telegram.WebApp.close()">Нет, выйти</button>
+</div>
+
+<header><div class="logo"><b>9</b> smoke</div><small>pod-системы и жидкости</small></header>
+<div class="tabs" id="tabs"></div>
+<div class="grid" id="grid"></div>
+<button class="bar hide" id="bar" onclick="openCart()"><span id="cnt"></span><span id="sum"></span></button>
+
+<div class="sheet" id="sheet" onclick="if(event.target===this)closeSheet()"><div class="panel" id="panel"></div></div>
+
+<script>
+const tg=window.Telegram&&Telegram.WebApp;if(tg){tg.ready();tg.expand()}
+// ===== Каталог: меняйте названия, цены, описания тут =====
+const CUR="сом";
+const PRODUCTS=[
+ {id:1,cat:"Pod-системы",name:"9S Pod Mini",desc:"Компактный, 450 мАч",price:1800,c:["#6b4ce6","#a78bfa"]},
+ {id:2,cat:"Pod-системы",name:"9S Pod Pro",desc:"Регулировка тяги, 800 мАч",price:2900,c:["#3b2fa0","#6b4ce6"]},
+ {id:3,cat:"Pod-системы",name:"9S Pod Slim",desc:"Тонкий корпус, Type-C",price:2300,c:["#ff7a4d","#ffb199"]},
+ {id:4,cat:"Жидкости",name:"Ледяная мята",desc:"30 мл, 20 мг",price:700,c:["#14b8a6","#5eead4"]},
+ {id:5,cat:"Жидкости",name:"Манго-персик",desc:"30 мл, 20 мг",price:700,c:["#f59e0b","#fcd34d"]},
+ {id:6,cat:"Жидкости",name:"Ягодный микс",desc:"30 мл, 20 мг",price:700,c:["#be185d","#f472b6"]},
+ {id:7,cat:"Картриджи",name:"Картридж 0.8 Ом",desc:"Набор из 2 шт.",price:600,c:["#475569","#94a3b8"]},
+ {id:8,cat:"Картриджи",name:"Картридж 1.0 Ом",desc:"Набор из 2 шт.",price:600,c:["#334155","#64748b"]}
+];
+const cats=["Все",...new Set(PRODUCTS.map(p=>p.cat))];
+let cat="Все",cart={};
+const $=id=>document.getElementById(id);
+const money=n=>n.toLocaleString("ru-RU")+" "+CUR;
+const total=()=>PRODUCTS.reduce((s,p)=>s+(cart[p.id]||0)*p.price,0);
+const count=()=>Object.values(cart).reduce((a,b)=>a+b,0);
+
+function ok(){$("gate").style.display="none";try{localStorage.setItem("age","1")}catch(e){}}
+try{if(localStorage.getItem("age"))ok()}catch(e){}
+
+function render(){
+ $("tabs").innerHTML=cats.map(c=>`<button class="${c===cat?"on":""}" onclick="cat='${c}';render()">${c}</button>`).join("");
+ $("grid").innerHTML=PRODUCTS.filter(p=>cat==="Все"||p.cat===cat).map(p=>`
+  <div class="card"><div class="pic" style="background:linear-gradient(135deg,${p.c[0]},${p.c[1]})">9</div>
+  <div class="info"><h3>${p.name}</h3><p>${p.desc}</p>
+  <div class="row"><span class="price">${money(p.price)}</span>${ctl(p)}</div></div></div>`).join("");
+ const n=count();$("bar").classList.toggle("hide",!n);
+ $("cnt").textContent="Корзина · "+n+" шт.";$("sum").textContent=money(total());
+}
+function ctl(p){const q=cart[p.id]||0;
+ return q?`<span class="qty"><button class="m" onclick="chg(${p.id},-1)">−</button>${q}<button onclick="chg(${p.id},1)">+</button></span>`
+  :`<button class="add" onclick="chg(${p.id},1)">+</button>`}
+function chg(id,d){cart[id]=Math.max(0,(cart[id]||0)+d);if(!cart[id])delete cart[id];
+ if(tg&&tg.HapticFeedback)tg.HapticFeedback.selectionChanged();render();if($("sheet").classList.contains("open"))openCart()}
+
+function openCart(){
+ const items=PRODUCTS.filter(p=>cart[p.id]);
+ $("panel").innerHTML=items.length?`<h2>Корзина</h2>`+items.map(p=>`<div class="line"><div><b>${p.name}</b><br><small style="color:var(--mute)">${money(p.price)}</small></div>${ctl(p)}</div>`).join("")+
+ `<div class="total"><span>Итого</span><span>${money(total())}</span></div>
+  <button class="main" onclick="checkout()">Оформить заказ</button><button class="link" onclick="closeSheet()">Продолжить покупки</button>`
+ :`<div class="empty">Корзина пуста</div><button class="link" onclick="closeSheet()">Вернуться в каталог</button>`;
+ $("sheet").classList.add("open")}
+function closeSheet(){$("sheet").classList.remove("open")}
+
+function checkout(){
+ const u=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user)||{};
+ $("panel").innerHTML=`<h2>Данные для заказа</h2>
+ <input id="nm" placeholder="Имя" value="${u.first_name||""}">
+ <input id="ph" type="tel" placeholder="Телефон">
+ <textarea id="ad" rows="2" placeholder="Адрес или пункт самовывоза"></textarea>
+ <div class="total"><span>К оплате</span><span>${money(total())}</span></div>
+ <button class="main" onclick="send()">Отправить заказ</button><button class="link" onclick="openCart()">Назад</button>`}
+function send(){
+ const nm=$("nm").value.trim(),ph=$("ph").value.trim(),ad=$("ad").value.trim();
+ if(!nm||!ph||!ad){alert("Заполните имя, телефон и адрес");return}
+ const order={name:nm,phone:ph,address:ad,total:total(),items:PRODUCTS.filter(p=>cart[p.id]).map(p=>({id:p.id,name:p.name,qty:cart[p.id],price:p.price}))};
+ if(tg&&tg.sendData)tg.sendData(JSON.stringify(order));
+ else{alert("Заказ (тест вне Telegram):\n"+JSON.stringify(order,null,1));cart={};closeSheet();render()}
+}
+render();
+</script></body></html>
